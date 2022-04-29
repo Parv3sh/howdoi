@@ -52,11 +52,13 @@ else:
 
 
 # rudimentary standardized 3-level log output
-def _print_err(x): print("[ERROR] " + x)
+def _print_err(x):
+    print(f"[ERROR] {x}")
 
 
 _print_ok = print  # noqa: E305
-def _print_dbg(x): print("[DEBUG] " + x)  # noqa: E302
+def _print_dbg(x):
+    print(f"[DEBUG] {x}")
 
 
 if os.getenv('HOWDOI_DISABLE_SSL'):  # Set http instead of https
@@ -158,12 +160,11 @@ class IntRange:
 
 def _random_int(width):
     bres = os.urandom(width)
-    if sys.version < '3':
-        ires = int(bres.encode('hex'), 16)
-    else:
-        ires = int.from_bytes(bres, 'little')
-
-    return ires
+    return (
+        int(bres.encode('hex'), 16)
+        if sys.version < '3'
+        else int.from_bytes(bres, 'little')
+    )
 
 
 def _random_choice(seq):
@@ -172,19 +173,16 @@ def _random_choice(seq):
 
 def get_proxies():
     proxies = getproxies()
-    filtered_proxies = {}
-    for key, value in proxies.items():
-        if key.startswith('http'):
-            if not value.startswith('http'):
-                filtered_proxies[key] = 'http://%s' % value
-            else:
-                filtered_proxies[key] = value
-    return filtered_proxies
+    return {
+        key: value if value.startswith('http') else f'http://{value}'
+        for key, value in proxies.items()
+        if key.startswith('http')
+    }
 
 
 def _format_url_to_filename(url, file_ext='html'):
     filename = ''.join(ch for ch in url if ch.isalnum())
-    return filename + '.' + file_ext
+    return f'{filename}.{file_ext}'
 
 
 def _get_result(url):
@@ -205,10 +203,7 @@ def _add_links_to_text(element):
         pquery_object = pq(hyperlink)
         href = hyperlink.attrib['href']
         copy = pquery_object.text()
-        if (copy == href):
-            replacement = copy
-        else:
-            replacement = "[{0}]({1})".format(copy, href)
+        replacement = copy if (copy == href) else "[{0}]({1})".format(copy, href)
         pquery_object.replace_with(replacement)
 
 
@@ -239,8 +234,7 @@ def _extract_links_from_duckduckgo(html):
     for anchor in links_anchors:
         link = anchor.attrib['href']
         url_obj = urlparse(link)
-        parsed_url = parse_qs(url_obj.query).get('uddg', '')
-        if parsed_url:
+        if parsed_url := parse_qs(url_obj.query).get('uddg', ''):
             results.append(parsed_url[0])
     return results
 
@@ -258,11 +252,7 @@ def _get_search_url(search_engine):
 
 
 def _is_blocked(page):
-    for indicator in BLOCK_INDICATORS:
-        if page.find(indicator) != -1:
-            return True
-
-    return False
+    return any(page.find(indicator) != -1 for indicator in BLOCK_INDICATORS)
 
 
 def _get_links(query):
@@ -283,11 +273,7 @@ def get_link_at_pos(links, position):
     if not links:
         return False
 
-    if len(links) >= position:
-        link = links[position - 1]
-    else:
-        link = links[-1]
-    return link
+    return links[position - 1] if len(links) >= position else links[-1]
 
 
 def _format_output(code, args):
@@ -335,7 +321,7 @@ def _get_answer(args, links):
     cache_key = link
     page = cache.get(link)
     if not page:
-        page = _get_result(link + '?answertab=votes')
+        page = _get_result(f'{link}?answertab=votes')
         cache.set(cache_key, page)
 
     html = pq(page)
@@ -356,9 +342,8 @@ def _get_answer(args, links):
         text = get_text(first_answer.find(answer_body_cls).eq(0))
     elif args['all']:
         texts = []
-        for html_tag in first_answer.items('{} > *'.format(answer_body_cls)):
-            current_text = get_text(html_tag)
-            if current_text:
+        for html_tag in first_answer.items(f'{answer_body_cls} > *'):
+            if current_text := get_text(html_tag):
                 if html_tag[0].tag in ['pre', 'code']:
                     texts.append(_format_output(current_text, args))
                 else:
@@ -373,9 +358,8 @@ def _get_answer(args, links):
 
 
 def _get_links_with_cache(query):
-    cache_key = query + "-links"
-    res = cache.get(cache_key)
-    if res:
+    cache_key = f"{query}-links"
+    if res := cache.get(cache_key):
         if res == CACHE_EMPTY_VAL:
             res = False
         return res
@@ -437,7 +421,9 @@ def _clear_cache():
 
 
 def _is_help_query(query):
-    return any([query.lower() == help_query for help_query in SUPPORTED_HELP_QUERIES])
+    return any(
+        query.lower() == help_query for help_query in SUPPORTED_HELP_QUERIES
+    )
 
 
 def _format_answers(res, args):
@@ -507,19 +493,18 @@ def print_stash(stash_list = []):
         if commands is None or len(commands.items()) == 0:
             print('No commands found in stash. Add a command with "howdoi --{stash_save} <query>".'.format(stash_save=STASH_SAVE))
             return
-        for cmd, fields in commands.items():
-            stash_list.append(format_stash_item(fields))
+        stash_list.extend(
+            format_stash_item(fields) for cmd, fields in commands.items()
+        )
+
     else:
         stash_list = [format_stash_item(x['fields'], i) for i, x in enumerate(stash_list)]
     print(build_splitter('#').join(stash_list))
 
 
 def _get_stash_key(args):
-    stash_args = {}
     ignore_keys = [STASH_SAVE, STASH_VIEW, STASH_REMOVE, STASH_EMPTY, 'tags'] # ignore these for stash key.
-    for key in args:
-        if not (key in ignore_keys):
-            stash_args[key] = args[key]
+    stash_args = {key: args[key] for key in args if key not in ignore_keys}
     return str(stash_args)
 
 
@@ -689,7 +674,7 @@ def command_line_runner():
     if os.getenv('HOWDOI_COLORIZE'):
         args['color'] = True
 
-    if not args['search_engine'] in SUPPORTED_SEARCH_ENGINES:
+    if args['search_engine'] not in SUPPORTED_SEARCH_ENGINES:
         _print_err('Unsupported engine.\nThe supported engines are: %s' % ', '.join(SUPPORTED_SEARCH_ENGINES))
         return
     elif args['search_engine'] != 'google':
