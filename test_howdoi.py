@@ -22,8 +22,7 @@ class HowdoiTestCase(unittest.TestCase):
         file_path = os.path.join(howdoi.HTML_CACHE_PATH, file_name)
         try:
             with gzip.open(file_path, 'rb') as f:
-                cached_page_content = str(f.read(), encoding='utf-8')
-                return cached_page_content
+                return str(f.read(), encoding='utf-8')
 
         except FileNotFoundError:
             page_content = self.original_get_result(url)
@@ -33,19 +32,19 @@ class HowdoiTestCase(unittest.TestCase):
 
     def _negative_number_query(self):
         query = self.queries[0]
-        self.call_howdoi(query + ' -n -1')
+        self.call_howdoi(f'{query} -n -1')
 
     def _high_positive_number_query(self):
         query = self.queries[0]
-        self.call_howdoi(query + ' -n 21')
+        self.call_howdoi(f'{query} -n 21')
 
     def _negative_position_query(self):
         query = self.queries[0]
-        self.call_howdoi(query + ' -p -2')
+        self.call_howdoi(f'{query} -p -2')
 
     def _high_positive_position_query(self):
         query = self.queries[0]
-        self.call_howdoi(query + ' -p 40')
+        self.call_howdoi(f'{query} -p 40')
 
     def setUp(self):
         self.original_get_result = howdoi._get_result
@@ -126,32 +125,32 @@ class HowdoiTestCase(unittest.TestCase):
 
     def test_answer_links_using_l_option(self):
         for query in self.queries:
-            response = self.call_howdoi(query + ' -l')
+            response = self.call_howdoi(f'{query} -l')
             self.assertNotEqual(re.match('http.?://.*questions/\d.*', response, re.DOTALL), None)
 
     def test_answer_links_using_all_option(self):
         for query in self.queries:
-            response = self.call_howdoi(query + ' -a')
+            response = self.call_howdoi(f'{query} -a')
             self.assertNotEqual(re.match('.*http.?://.*questions/\d.*', response, re.DOTALL), None)
 
     def test_position(self):
         query = self.queries[0]
         first_answer = self.call_howdoi(query)
-        not_first_answer = self.call_howdoi(query + ' -p5')
+        not_first_answer = self.call_howdoi(f'{query} -p5')
         self.assertNotEqual(first_answer, not_first_answer)
 
     def test_all_text(self):
         query = self.queries[0]
         first_answer = self.call_howdoi(query)
-        second_answer = self.call_howdoi(query + ' -a')
+        second_answer = self.call_howdoi(f'{query} -a')
         self.assertNotEqual(first_answer, second_answer)
         self.assertNotEqual(re.match('.*Answer from http.?://.*', second_answer, re.DOTALL), None)
 
     def test_json_output(self):
         query = self.queries[0]
         txt_answer = self.call_howdoi(query)
-        json_answer = self.call_howdoi(query + ' -j')
-        link_answer = self.call_howdoi(query + ' -l')
+        json_answer = self.call_howdoi(f'{query} -j')
+        link_answer = self.call_howdoi(f'{query} -l')
         json_answer = json.loads(json_answer)[0]
         self.assertEqual(json_answer["answer"], txt_answer)
         self.assertEqual(json_answer["link"], link_answer)
@@ -160,7 +159,7 @@ class HowdoiTestCase(unittest.TestCase):
     def test_multiple_answers(self):
         query = self.queries[0]
         first_answer = self.call_howdoi(query)
-        second_answer = self.call_howdoi(query + ' -n3')
+        second_answer = self.call_howdoi(f'{query} -n3')
         self.assertNotEqual(first_answer, second_answer)
 
     def test_unicode_answer(self):
@@ -172,7 +171,7 @@ class HowdoiTestCase(unittest.TestCase):
     def test_colorize(self):
         query = self.queries[0]
         normal = self.call_howdoi(query)
-        colorized = self.call_howdoi('-c ' + query)
+        colorized = self.call_howdoi(f'-c {query}')
         self.assertTrue(normal.find('[39;') == -1)
         self.assertTrue(colorized.find('[39;') != -1)
 
@@ -285,10 +284,11 @@ class HowdoiTestCaseEnvProxies(unittest.TestCase):
 
     def test_get_proxies1(self):
         def getproxies1():
-            proxies = {'http': 'wwwproxy.company.com',
-                       'https': 'wwwproxy.company.com',
-                       'ftp': 'ftpproxy.company.com'}
-            return proxies
+            return {
+                'http': 'wwwproxy.company.com',
+                'https': 'wwwproxy.company.com',
+                'ftp': 'ftpproxy.company.com',
+            }
 
         howdoi.getproxies = getproxies1
         filtered_proxies = howdoi.get_proxies()

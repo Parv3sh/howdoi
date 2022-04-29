@@ -11,7 +11,7 @@ def extra_dependencies():
 
 
 def read(*names):
-    values = dict()
+    values = {}
     for name in names:
         value = ''
         for extension in ('.txt', '.rst'):
